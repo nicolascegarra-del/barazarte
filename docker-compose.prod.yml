@@ -132,19 +132,13 @@ services:
         NEXT_PUBLIC_API_URL: ${API_URL:?Define API_URL, p.ej. https://api.barazarte.com}
     restart: unless-stopped
     environment:
-      # El servidor de Next habla con la API por la red interna, sin salir a internet.
-      INTERNAL_API_URL: http://baraz-api:8000
+      # Sin INTERNAL_API_URL: el servidor de Next usa la URL pública de la API (API_URL), que siempre resuelve.
+      # (El alias interno baraz-api no era alcanzable desde el frontend dentro de Coolify.)
       HOSTNAME: 0.0.0.0  # Next escucha en todas las interfaces, no solo en la IP del contenedor
     expose:
       - "3000"
-    healthcheck:
-      # Acepta respuesta en la IP del contenedor o en 127.0.0.1 (no en "localhost": en Alpine resuelve a IPv6).
-      # Así no depende de en qué interfaz escuche Next dentro de Coolify.
-      test: ["CMD-SHELL", "wget -qO /dev/null -T 4 http://$$(hostname -i | cut -d' ' -f1):3000/ || wget -qO /dev/null -T 4 http://127.0.0.1:3000/"]
-      interval: 15s
-      timeout: 10s
-      retries: 5
-      start_period: 40s
+    # Sin healthcheck a propósito: con él, Coolify dejó la web sin servidor ("no available server") y
+    # sin acceso a los logs no se pudo confirmar la causa. Volver a añadirlo cuando se vea el motivo.
     depends_on:
       - backend
 
