@@ -1,0 +1,21 @@
+# Secretos y entornos locales
+.env
+.env.*
+!.env.example
+
+# Dependencias y builds
+node_modules/
+.next/
+out/
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+
+# Local
+.claude/
+*.log
+.DS_Store

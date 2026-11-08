@@ -1,0 +1,96 @@
+# Entorno de desarrollo local de BarazArte.
+# Credenciales de ejemplo SOLO para desarrollo; en produccion se gestionan en Coolify.
+# Uso: JWT_SECRET_KEY=$(openssl rand -hex 32) docker compose up --build
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: barazarte
+      POSTGRES_PASSWORD: barazarte
+      POSTGRES_DB: barazarte
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U barazarte"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin-dev
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "8025:8025"   # UI web
+      - "1025:1025"   # SMTP
+
+  backend:
+    build: ./backend
+    command: >
+      sh -c "alembic upgrade head &&
+             gunicorn app.main:app -k uvicorn.workers.UvicornWorker -w 2 -b 0.0.0.0:8000"
+    environment: &backend_env
+      APP_ENV: development
+      DOCS_ENABLED: "true"
+      FRONTEND_BASE_URL: http://localhost:3000
+      CORS_ORIGINS: http://localhost:3000
+      DATABASE_URL: postgresql+psycopg://barazarte:barazarte@postgres:5432/barazarte
+      REDIS_URL: redis://redis:6379/0
+      RATE_LIMIT_BACKEND: redis
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Define JWT_SECRET_KEY (openssl rand -hex 32)}
+      COOKIE_SECURE: "false"
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin-dev
+      MINIO_BUCKET_NAME: barazarte
+      MINIO_SECURE: "false"
+      MINIO_PUBLIC_BASE_URL: http://localhost:9000
+      SMTP_HOST: mailpit
+      SMTP_PORT: "1025"
+      MAIL_FROM: "BarazArte <no-reply@barazarte.local>"
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
+      minio: {condition: service_healthy}
+
+  # Worker Celery: sin el, los emails de consultas se encolan pero no se envian
+  worker:
+    build: ./backend
+    command: celery -A app.tasks.celery_app worker --loglevel=INFO
+    environment: *backend_env
+    depends_on:
+      - backend
+      - mailpit
+
+volumes:
+  postgres_data:
+  minio_data:

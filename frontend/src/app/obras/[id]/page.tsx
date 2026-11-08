@@ -1,0 +1,47 @@
+import { notFound } from "next/navigation";
+import { type ArtworkDetail, formatPrice, formatSize, publicGet } from "@/lib/api";
+import { ContactForm } from "@/components/ContactForm";
+
+export const dynamic = "force-dynamic";
+
+export default async function ObraPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const art = await publicGet<ArtworkDetail>(`/artworks/${encodeURIComponent(id)}`);
+  if (!art) notFound();
+  const [main, ...rest] = art.images;
+
+  return (
+    <article className="mx-auto grid max-w-6xl gap-10 px-4 py-12 md:grid-cols-2 md:px-8">
+      <div className="mx-auto w-full max-w-md space-y-3">
+        {main && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={main.url} alt={main.alt_text ?? art.title} width={main.width} height={main.height} className="h-auto w-full shadow-lg" />
+        )}
+        {rest.length > 0 && (
+          <div className="grid grid-cols-3 gap-3">
+            {rest.map((im) => (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img key={im.id} src={im.thumb_url} alt={im.alt_text ?? `Detalle de ${art.title}`} loading="lazy" className="h-auto w-full" />
+            ))}
+          </div>
+        )}
+      </div>
+      <div>
+        <p className="text-xs uppercase tracking-[0.2em] text-muted">{art.artist.display_name}</p>
+        <h1 className="mt-2 font-serif text-4xl font-medium md:text-5xl">{art.title}</h1>
+        <div className="mt-5 border-t border-foreground pt-3 text-sm text-muted">
+          {art.technique} · {formatSize(art)} · {art.year}
+        </div>
+        {art.description && <p className="mt-4 whitespace-pre-line text-sm leading-7">{art.description}</p>}
+        <p className="mt-5 text-2xl">{art.status === "vendido" ? "Vendido" : formatPrice(art.price)}</p>
+        <div className="mt-8">
+          {art.status === "vendido" ? (
+            <p className="text-sm text-muted">Esta obra ya ha encontrado hogar.</p>
+          ) : (
+            <ContactForm artworkId={art.id} title={art.title} />
+          )}
+        </div>
+      </div>
+    </article>
+  );
+}
