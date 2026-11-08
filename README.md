@@ -49,8 +49,35 @@ cd frontend && npm run lint && npx tsc --noEmit && npm run build
 cd backend && pytest && ruff check .
 ```
 
-## Deploy
-Coolify sobre VPS. Pendiente de configurar (ver checklist de deploy de Klyp).
+## Deploy (Coolify)
+No uses `docker-compose.yml` (es solo para desarrollo: abre puertos y usa contraseñas de ejemplo).
+En Coolify crea un recurso **Docker Compose** apuntando a este repositorio con
+**Docker Compose Location** = `/docker-compose.prod.yml` y asigna un dominio HTTPS a cada servicio
+(subdominios del mismo dominio, porque la cookie de sesión es `SameSite=Strict`):
+
+| Servicio | Dominio de ejemplo | Puerto |
+|---|---|---|
+| `frontend` | `https://barazarte.com` | 3000 |
+| `backend` | `https://api.barazarte.com` | 8000 |
+| `storage` | `https://media.barazarte.com` | 9000 |
+
+Variables de entorno en Coolify (todas obligatorias salvo las de SMTP):
+
+| Variable | Valor |
+|---|---|
+| `JWT_SECRET_KEY` | `openssl rand -hex 32` (no cambiarla después: cifra la contraseña SMTP guardada) |
+| `POSTGRES_PASSWORD` | contraseña larga y aleatoria |
+| `S3_ACCESS_KEY` / `S3_SECRET_KEY` | claves del almacenamiento de fotos (elige valores aleatorios) |
+| `FRONTEND_URL` | `https://barazarte.com` |
+| `API_URL` | `https://api.barazarte.com` |
+| `MEDIA_URL` | `https://media.barazarte.com` |
+| `SMTP_*`, `MAIL_FROM` | opcionales: el admin configura el correo desde `/admin/correo` |
+
+Primer despliegue: crea el administrador desde el terminal del contenedor `backend`:
+```bash
+python -m app.cli create-artist --admin --email admin@tudominio.com --name "Tu nombre"
+```
+Después entra en `/admin/correo` y configura la cuenta SMTP real. Haz una copia de seguridad de Postgres antes de cada migración.
 
 ## Estado
 Probado en local con Docker: registro y verificación, login, límite de obras, subida de fotos a S3, publicación,

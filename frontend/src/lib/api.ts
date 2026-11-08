@@ -1,6 +1,9 @@
 /** Cliente de la API de BarazArte y tipos que reflejan los schemas del backend (FastAPI). */
 export const API_URL = `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"}/api/v1`;
 
+// En el servidor (SSR) se usa la red interna de Docker si existe INTERNAL_API_URL, para no salir a internet.
+const SERVER_API_URL = process.env.INTERNAL_API_URL ? `${process.env.INTERNAL_API_URL}/api/v1` : API_URL;
+
 export type ArtworkStatus = "borrador" | "publicado" | "reservado" | "vendido";
 export type InquiryStatus = "nueva" | "contactado" | "vendida";
 
@@ -79,7 +82,7 @@ export async function publicPost<T = void>(path: string, body: unknown): Promise
 /** GET público desde el servidor. Devuelve null si la API no responde o da error (la página muestra un aviso). */
 export async function publicGet<T>(path: string): Promise<T | null> {
   try {
-    const res = await fetch(`${API_URL}${path}`, { cache: "no-store" });
+    const res = await fetch(`${SERVER_API_URL}${path}`, { cache: "no-store" });
     return res.ok ? ((await res.json()) as T) : null;
   } catch {
     return null;
