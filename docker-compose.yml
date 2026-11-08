@@ -28,22 +28,18 @@ services:
       timeout: 3s
       retries: 10
 
+  # Almacenamiento S3-compatible. MinIO dejó de publicar imágenes en Docker Hub/quay.io,
+  # así que en desarrollo se usa RustFS (misma API S3, el cliente `minio` del backend funciona igual).
   minio:
-    image: minio/minio:latest
-    command: server /data --console-address ":9001"
+    image: rustfs/rustfs:latest
     environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin-dev
+      RUSTFS_ACCESS_KEY: minioadmin
+      RUSTFS_SECRET_KEY: minioadmin-dev
     ports:
       - "9000:9000"
       - "9001:9001"
     volumes:
       - minio_data:/data
-    healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
 
   mailpit:
     image: axllent/mailpit:latest
@@ -60,7 +56,7 @@ services:
       APP_ENV: development
       DOCS_ENABLED: "true"
       FRONTEND_BASE_URL: http://localhost:3000
-      CORS_ORIGINS: http://localhost:3000
+      CORS_ORIGINS: http://localhost:3000,http://localhost:3003
       DATABASE_URL: postgresql+psycopg://barazarte:barazarte@postgres:5432/barazarte
       REDIS_URL: redis://redis:6379/0
       RATE_LIMIT_BACKEND: redis
@@ -80,7 +76,7 @@ services:
     depends_on:
       postgres: {condition: service_healthy}
       redis: {condition: service_healthy}
-      minio: {condition: service_healthy}
+      minio: {condition: service_started}
 
   # Worker Celery: sin el, los emails de consultas se encolan pero no se envian
   worker:

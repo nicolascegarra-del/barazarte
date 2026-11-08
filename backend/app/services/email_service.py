@@ -1,10 +1,19 @@
 """Construccion y envio de emails transaccionales (texto plano, SMTP)."""
 
 import smtplib
+import ssl
 from email.message import EmailMessage
+from email.utils import formataddr
+
+from sqlmodel import Session
 
 from app.core.config import get_settings
+from app.core.database import get_engine
 from app.models import Artist, Inquiry
+from app.schemas.admin import SmtpSecurity
+from app.services.email_settings_service import SmtpConfig, get_smtp_config
+
+SEND_TIMEOUT_SECONDS = 15
 
 
 def _single_line(value: str) -> str:
@@ -49,11 +58,94 @@ def build_buyer_confirmation(inquiry: Inquiry, artist: Artist) -> EmailMessage:
     return message
 
 
-def send_email(message: EmailMessage) -> None:
-    settings = get_settings()
-    with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=15) as smtp:
-        if settings.smtp_starttls:
-            smtp.starttls()
-        if settings.smtp_user:
-            smtp.login(settings.smtp_user, settings.smtp_password)
+def _frontend_url(path: str, token: str) -> str:
+    return f"{get_settings().frontend_base_url.rstrip('/')}{path}?token={token}"
+
+
+def _base_message(to: str, subject: str) -> EmailMessage:
+    message = EmailMessage()
+    message["From"] = get_settings().mail_from
+    message["To"] = to
+    message["Subject"] = _single_line(subject)
+    return message
+
+
+def build_verification_email(artist: Artist, token: str) -> EmailMessage:
+    hours = get_settings().email_verify_expire_hours
+    message = _base_message(artist.email, "Confirma tu email en BarazArte")
+    message.set_content(
+        f"Hola {artist.display_name},\n\n"
+        f"Gracias por registrarte en BarazArte. Confirma tu email para activar tu cuenta:\n"
+        f"{_frontend_url('/verificar-email', token)}\n\n"
+        f"El enlace caduca en {hours} horas. Si no has sido tu, ignora este mensaje.\n"
+    )
+    return message
+
+
+def build_password_reset_email(artist: Artist, token: str) -> EmailMessage:
+    minutes = get_settings().password_reset_expire_minutes
+    message = _base_message(artist.email, "Restablece tu contrasena de BarazArte")
+    message.set_content(
+        f"Hola {artist.display_name},\n\n"
+        f"Puedes elegir una nueva contrasena en este enlace:\n"
+        f"{_frontend_url('/restablecer', token)}\n\n"
+        f"Caduca en {minutes} minutos y solo se puede usar una vez. "
+        f"Si no lo has pedido tu, ignora este mensaje.\n"
+    )
+    return message
+
+
+def build_account_exists_email(artist: Artist) -> EmailMessage:
+    base = get_settings().frontend_base_url.rstrip("/")
+    message = _base_message(artist.email, "Ya tienes una cuenta en BarazArte")
+    message.set_content(
+        f"Hola {artist.display_name},\n\n"
+        f"Alguien ha intentado registrarse en BarazArte con este email, pero ya tienes cuenta.\n"
+        f"Puedes iniciar sesion en {base}/panel/login o, si olvidaste la contrasena, "
+        f"restablecerla desde esa pagina.\n"
+        f"Si no has sido tu, ignora este mensaje.\n"
+    )
+    return message
+
+
+def send_email(
+    message: EmailMessage,
+    *,
+    session: Session | None = None,
+    timeout: float = SEND_TIMEOUT_SECONDS,
+) -> None:
+    """Envia con la cuenta SMTP de la plataforma (BD; si no hay fila, variables de entorno).
+
+    La configuracion se lee en cada envio porque el worker Celery es otro proceso."""
+    if session is not None:
+        config = get_smtp_config(session)
+    else:
+        with Session(get_engine()) as own_session:
+            config = get_smtp_config(own_session)
+    deliver(message, config, timeout=timeout)
+
+
+def deliver(message: EmailMessage, config: SmtpConfig, *, timeout: float) -> None:
+    del message["From"]
+    message["From"] = formataddr((_single_line(config.from_name), config.from_email))
+    if config.security is SmtpSecurity.SSL:
+        smtp: smtplib.SMTP = smtplib.SMTP_SSL(
+            config.host, config.port, timeout=timeout, context=ssl.create_default_context()
+        )
+    else:
+        smtp = smtplib.SMTP(config.host, config.port, timeout=timeout)
+    with smtp:
+        if config.security is SmtpSecurity.STARTTLS:
+            smtp.starttls(context=ssl.create_default_context())
+        if config.username:
+            smtp.login(config.username, config.password or "")
         smtp.send_message(message)
+
+
+def build_test_email(to: str) -> EmailMessage:
+    message = _base_message(to, "Prueba de configuracion de correo de BarazArte")
+    message.set_content(
+        "Este es un email de prueba.\n\n"
+        "Si lo has recibido, la cuenta de correo de la plataforma esta bien configurada.\n"
+    )
+    return message

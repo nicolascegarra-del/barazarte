@@ -9,7 +9,7 @@ from fastapi import FastAPI, Request, Response
 from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import auth, panel, public
+from app.api import admin, auth, panel, public
 from app.core.config import get_settings
 from app.core.errors import register_error_handlers
 from app.core.storage import MinioStorage, get_storage
@@ -73,7 +73,7 @@ def create_app() -> FastAPI:
     def health() -> dict[str, str]:
         return {"status": "ok"}
 
-    for router in (auth.router, public.router, panel.router):
+    for router in (auth.router, public.router, panel.router, admin.router):
         app.include_router(router, prefix=API_PREFIX)
     return app
 

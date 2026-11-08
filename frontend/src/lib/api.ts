@@ -26,6 +26,25 @@ export interface Inquiry {
   phone: string | null; message: string; status: InquiryStatus; created_at: string;
 }
 
+// ─── Administración ───
+export interface AdminStats {
+  artists: { total: number; active: number; disabled: number; unverified: number };
+  artworks: { total: number; borrador: number; publicado: number; reservado: number; vendido: number };
+  inquiries: { total: number; nueva: number; contactado: number; vendida: number };
+  visits: { total: number; last_30_days: number; by_day: { date: string; count: number }[] };
+}
+export interface AdminArtist {
+  id: number; email: string; display_name: string; is_active: boolean; email_verified: boolean; is_admin: boolean;
+  max_artworks: number | null; artworks_count: number; published_count: number; inquiries_count: number;
+  visits_count: number; created_at: string;
+}
+
+export interface EmailSettings {
+  host: string; port: number; username: string | null; has_password: boolean;
+  security: "none" | "starttls" | "ssl"; from_name: string; from_email: string;
+  source: "database" | "environment";
+}
+
 export class ApiError extends Error {
   constructor(public status: number, public code: string, message: string) {
     super(message);
@@ -34,7 +53,7 @@ export class ApiError extends Error {
 
 /** Convierte una respuesta no válida en ApiError usando el formato de error estándar Klyp. */
 export async function parseResponse<T>(res: Response): Promise<T> {
-  if (res.ok) return (res.status === 204 ? undefined : await res.json()) as T;
+  if (res.ok) return (res.status === 204 || res.status === 202 ? undefined : await res.json()) as T;
   let code = "ERROR";
   let message = "Algo ha fallado. Inténtalo de nuevo.";
   try {
@@ -45,6 +64,16 @@ export async function parseResponse<T>(res: Response): Promise<T> {
     /* respuesta sin JSON */
   }
   throw new ApiError(res.status, code, message);
+}
+
+/** POST JSON sin autenticación (registro, verificación, recuperar clave). */
+export async function publicPost<T = void>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(`${API_URL}${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  return parseResponse<T>(res);
 }
 
 /** GET público desde el servidor. Devuelve null si la API no responde o da error (la página muestra un aviso). */

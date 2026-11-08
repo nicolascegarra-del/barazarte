@@ -146,13 +146,21 @@ def _paginate(
     return list(session.exec(statement)), total
 
 
+def _from_active_artist() -> Any:
+    """Condicion SQL: la obra pertenece a un artista activo (las de desactivados se ocultan)."""
+    return col(Artwork.artist_id).in_(select(Artist.id).where(col(Artist.is_active).is_(True)))
+
+
 def list_public(
     session: Session,
     params: PaginationParams,
     artist_id: int | None,
     status: ArtworkStatus | None,
 ) -> tuple[list[Artwork], int]:
-    conditions: list[Any] = [col(Artwork.status).in_(PUBLIC_ARTWORK_STATUSES)]
+    conditions: list[Any] = [
+        col(Artwork.status).in_(PUBLIC_ARTWORK_STATUSES),
+        _from_active_artist(),
+    ]
     if status is not None:
         conditions.append(Artwork.status == status)
     if artist_id is not None:
@@ -163,6 +171,9 @@ def list_public(
 def get_public(session: Session, artwork_id: int) -> Artwork:
     artwork = session.get(Artwork, artwork_id)
     if artwork is None or artwork.status not in PUBLIC_ARTWORK_STATUSES:
+        raise not_found("Obra no encontrada.")
+    owner = session.get(Artist, artwork.artist_id)
+    if owner is None or not owner.is_active:
         raise not_found("Obra no encontrada.")
     return artwork
 
@@ -206,9 +217,30 @@ def _ensure_can_be_public(session: Session, artwork_id: int | None, status: Artw
 # ─── Escritura ──────────────────────────────────────────────────────────────────
 
 
-def create_artwork(session: Session, artist_id: int, data: ArtworkCreate) -> Artwork:
+def count_for_artist(session: Session, artist_id: int) -> int:
+    """Obras del artista, incluidos borradores (base del limite por artista)."""
+    statement = select(func.count()).select_from(Artwork).where(Artwork.artist_id == artist_id)
+    return session.exec(statement).one()
+
+
+def _ensure_under_limit(session: Session, artist: Artist) -> None:
+    assert artist.id is not None  # noqa: S101
+    if artist.max_artworks is None:
+        return
+    if count_for_artist(session, artist.id) >= artist.max_artworks:
+        raise AppError(
+            409,
+            "ARTWORK_LIMIT_REACHED",
+            f"Has alcanzado el limite de {artist.max_artworks} obras. "
+            "Contacta con la galeria para ampliarlo.",
+        )
+
+
+def create_artwork(session: Session, artist: Artist, data: ArtworkCreate) -> Artwork:
+    assert artist.id is not None  # noqa: S101
+    _ensure_under_limit(session, artist)
     _ensure_can_be_public(session, None, data.status)
-    artwork = Artwork(artist_id=artist_id, **data.model_dump())
+    artwork = Artwork(artist_id=artist.id, **data.model_dump())
     session.add(artwork)
     session.commit()
     session.refresh(artwork)

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { type ArtworkListItem, type Page, publicGet } from "@/lib/api";
 import { ArtworkGrid } from "@/components/ArtworkGrid";
+import { VisitTracker } from "@/components/VisitTracker";
 
 export const dynamic = "force-dynamic";
 
@@ -8,6 +9,7 @@ export default async function Home() {
   const data = await publicGet<Page<ArtworkListItem>>("/artworks?page_size=6");
   return (
     <>
+      <VisitTracker />
       <section className="mx-auto grid max-w-6xl gap-6 px-4 pb-4 pt-12 md:grid-cols-2 md:items-end md:px-8 md:pt-16">
         <h1 className="font-serif text-4xl font-medium leading-[1.05] md:text-6xl">
           Pintura contemporánea, obra original

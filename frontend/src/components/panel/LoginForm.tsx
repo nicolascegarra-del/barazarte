@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { useSession } from "@/lib/session";
 
@@ -40,6 +41,10 @@ export function LoginForm() {
       <button disabled={busy} className="min-h-12 w-full bg-foreground text-xs uppercase tracking-[0.18em] text-background disabled:opacity-60">
         {busy ? "Entrando…" : "Entrar"}
       </button>
+      <div className="flex flex-col gap-1 text-center text-sm text-muted">
+        <Link href="/recuperar" className="min-h-11 content-center underline">¿Olvidaste la contraseña?</Link>
+        <span>¿Aún no tienes cuenta? <Link href="/registro" className="underline">Regístrate como artista</Link></span>
+      </div>
     </form>
   );
 }

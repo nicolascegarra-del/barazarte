@@ -60,13 +60,13 @@ def list_my_artworks(
     response_model=ArtworkDetail,
     status_code=201,
     summary="Crear obra",
-    description="Errores: 409 si se crea ya publicada (una obra nueva no tiene imagenes).",
+    description="Errores: 409 ARTWORK_NEEDS_IMAGE si se crea ya publicada (una obra nueva no "
+    "tiene imagenes), 409 ARTWORK_LIMIT_REACHED si se alcanza el limite de obras del artista.",
 )
 def create_artwork(
     body: ArtworkCreate, artist: CurrentArtist, session: SessionDep
 ) -> ArtworkDetail:
-    assert artist.id is not None  # noqa: S101
-    artwork = artwork_service.create_artwork(session, artist.id, body)
+    artwork = artwork_service.create_artwork(session, artist, body)
     return artwork_service.to_detail(session, artwork)
 
 

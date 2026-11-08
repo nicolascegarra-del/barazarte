@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { type ArtworkDetail, formatPrice, formatSize, publicGet } from "@/lib/api";
 import { ContactForm } from "@/components/ContactForm";
+import { VisitTracker } from "@/components/VisitTracker";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +13,7 @@ export default async function ObraPage({ params }: { params: Promise<{ id: strin
 
   return (
     <article className="mx-auto grid max-w-6xl gap-10 px-4 py-12 md:grid-cols-2 md:px-8">
+      <VisitTracker artworkId={art.id} />
       <div className="mx-auto w-full max-w-md space-y-3">
         {main && (
           // eslint-disable-next-line @next/next/no-img-element

@@ -77,8 +77,25 @@ def client(session: Session, storage: FakeStorage) -> Iterator[TestClient]:
     app.dependency_overrides.clear()
 
 
-def make_artist(session: Session, email: str = "maria@example.com", name: str = "Maria") -> Artist:
-    artist = Artist(email=email, password_hash=hash_password(ARTIST_PASSWORD), display_name=name)
+def make_artist(
+    session: Session,
+    email: str = "maria@example.com",
+    name: str = "Maria",
+    *,
+    is_admin: bool = False,
+    is_active: bool = True,
+    email_verified: bool = True,
+    max_artworks: int | None = 5,
+) -> Artist:
+    artist = Artist(
+        email=email,
+        password_hash=hash_password(ARTIST_PASSWORD),
+        display_name=name,
+        is_admin=is_admin,
+        is_active=is_active,
+        email_verified=email_verified,
+        max_artworks=max_artworks,
+    )
     session.add(artist)
     session.commit()
     session.refresh(artist)

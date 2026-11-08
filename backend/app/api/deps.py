@@ -5,7 +5,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlmodel import Session
 
 from app.core.database import get_session
-from app.core.errors import unauthorized
+from app.core.errors import forbidden, unauthorized
 from app.core.security import TokenType, decode_token
 from app.models import Artist
 from app.services.auth_service import get_active_artist
@@ -25,3 +25,12 @@ def get_current_artist(
 
 
 CurrentArtist = Annotated[Artist, Depends(get_current_artist)]
+
+
+def get_current_admin(artist: CurrentArtist) -> Artist:
+    if not artist.is_admin:
+        raise forbidden("Se requieren permisos de administrador.")
+    return artist
+
+
+CurrentAdmin = Annotated[Artist, Depends(get_current_admin)]

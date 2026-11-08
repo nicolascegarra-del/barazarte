@@ -3,7 +3,10 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { API_URL, ApiError, parseResponse } from "./api";
 
-export interface Me { id: number; email: string; display_name: string }
+export interface Me {
+  id: number; email: string; display_name: string;
+  is_admin: boolean; max_artworks: number | null; artworks_count: number;
+}
 interface TokenResponse { access_token: string; artist: Me }
 type Init = Omit<RequestInit, "body"> & { json?: unknown; body?: BodyInit };
 
@@ -12,6 +15,8 @@ interface SessionValue {
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  /** Vuelve a pedir los datos del artista (p. ej. el contador de obras tras subir una). */
+  reloadMe: () => Promise<void>;
   authFetch: <T>(path: string, init?: Init) => Promise<T>;
 }
 const Ctx = createContext<SessionValue | null>(null);
@@ -81,7 +86,18 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     [refresh],
   );
 
-  const value = useMemo(() => ({ artist, loading, login, logout, authFetch }), [artist, loading, login, logout, authFetch]);
+  const reloadMe = useCallback(async () => {
+    try {
+      setArtist(await authFetch<Me>("/auth/me"));
+    } catch {
+      /* si falla se mantiene el dato anterior */
+    }
+  }, [authFetch]);
+
+  const value = useMemo(
+    () => ({ artist, loading, login, logout, reloadMe, authFetch }),
+    [artist, loading, login, logout, reloadMe, authFetch],
+  );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 

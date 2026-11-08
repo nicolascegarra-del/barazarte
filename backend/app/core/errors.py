@@ -53,6 +53,10 @@ def unauthorized(message: str = "Credenciales no validas.") -> AppError:
     return AppError(401, "UNAUTHORIZED", message, headers={"WWW-Authenticate": "Bearer"})
 
 
+def forbidden(message: str = "No tienes permiso para realizar esta accion.") -> AppError:
+    return AppError(403, "FORBIDDEN", message)
+
+
 def error_response(
     request: Request,
     status_code: int,

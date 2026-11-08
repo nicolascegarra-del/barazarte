@@ -34,11 +34,14 @@ export function UploadWizard() {
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [published, setPublished] = useState<"publicado" | "borrador" | null>(null);
-  const { authFetch } = useSession();
+  const { authFetch, artist, reloadMe } = useSession();
   const [blob, setBlob] = useState<Blob | null>(null);
   const [createdId, setCreatedId] = useState<number | null>(null);
   const [imageUploaded, setImageUploaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Solo se bloquea antes de crear la obra; si ya se creó en este asistente, se deja terminar.
+  const limitReached =
+    !!artist && artist.max_artworks !== null && artist.artworks_count >= artist.max_artworks && createdId === null && !published;
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormIn, unknown, FormOut>({
     resolver: zodResolver(schema),
     defaultValues: { technique: TECHNIQUES[0], year: new Date().getFullYear() },
@@ -79,10 +82,23 @@ export function UploadWizard() {
       }
       if (status === "publicado") await authFetch(`/panel/artworks/${id}`, { method: "PATCH", json: { status } });
       setPublished(status);
+      void reloadMe(); // actualiza el contador "X de Y obras"
     } catch (e) {
       setError(e instanceof Error ? e.message : "No se pudo guardar la obra. Inténtalo de nuevo.");
     }
   }
+
+  if (limitReached)
+    return (
+      <div role="status" className="mx-auto max-w-md py-10 text-center">
+        <h1 className="font-serif text-3xl">Has llegado al límite de obras</h1>
+        <p className="mt-2 text-sm text-muted">
+          Tu cuenta permite {artist?.max_artworks} obras y ya las has usado. Puedes borrar una que ya no necesites desde Mis obras
+          o escribirnos para ampliar tu límite.
+        </p>
+        <Link href="/panel/obras" className="mt-6 inline-flex min-h-12 items-center bg-foreground px-6 text-xs uppercase tracking-[0.18em] text-background">Ir a Mis obras</Link>
+      </div>
+    );
 
   if (published)
     return (

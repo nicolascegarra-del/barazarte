@@ -19,10 +19,20 @@ npm install
 npm run dev
 ```
 
-Los artistas se crean desde la línea de comandos (no hay registro público):
+Los artistas se registran solos en `/registro` (confirman su email y ya pueden subir obras; límite por defecto: 5 obras).
+El primer administrador se crea por línea de comandos (pide la contraseña por teclado):
 ```bash
-docker compose exec backend python -m app.cli create-artist --email artista@ejemplo.com --name "Nombre"
+docker compose exec backend python -m app.cli create-artist --admin --email admin@ejemplo.com --name "Nombre"
 ```
+
+El admin (`/admin`) ve estadísticas, gestiona artistas (límite de obras, deshabilitar, resetear contraseña por email) y
+configura en `/admin/correo` la única cuenta SMTP con la que se envían todos los emails. En desarrollo, Mailpit
+(http://localhost:8025) recoge los emails: usa servidor `mailpit`, puerto `1025`, seguridad "Ninguna".
+
+Notas de desarrollo:
+- El almacenamiento S3 local es RustFS (MinIO ya no publica imágenes oficiales en Docker Hub).
+- La contraseña SMTP se cifra con una clave derivada de `JWT_SECRET_KEY` (o `SETTINGS_ENCRYPTION_KEY`); si cambia, hay que volver a introducirla.
+- Si el frontend corre en otro puerto que el 3000, añádelo a `CORS_ORIGINS` en `docker-compose.yml`.
 
 ## Variables de entorno necesarias
 - `backend/.env.example`: base de datos, Redis, JWT, MinIO, SMTP, CORS.
@@ -43,4 +53,6 @@ cd backend && pytest && ruff check .
 Coolify sobre VPS. Pendiente de configurar (ver checklist de deploy de Klyp).
 
 ## Estado
-Frontend y backend creados; la integración completa con Docker (Postgres, MinIO, envío real de emails) aún no está verificada de punta a punta.
+Probado en local con Docker: registro y verificación, login, límite de obras, subida de fotos a S3, publicación,
+consultas con email al artista, panel de admin y configuración de correo. Pendiente: tests E2E automáticos (Playwright),
+revisión responsive completa, política de privacidad real y despliegue en Coolify.

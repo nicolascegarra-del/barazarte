@@ -2,18 +2,19 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, Query, Request, Response
 
 from app.api.deps import SessionDep
 from app.core.config import get_settings
 from app.core.errors import not_found
 from app.core.rate_limit import rate_limit
 from app.models import Artist, ArtworkStatus
+from app.schemas.admin import TrackRequest
 from app.schemas.artist import ArtistPublic
 from app.schemas.artwork import ArtworkDetail, ArtworkListItem, PublicStatus
 from app.schemas.common import Page, PaginationParams
 from app.schemas.inquiry import InquiryAccepted, InquiryCreate
-from app.services import artwork_service, inquiry_service
+from app.services import artwork_service, inquiry_service, visit_service
 
 router = APIRouter(tags=["public"])
 
@@ -23,12 +24,17 @@ def _inquiry_limits() -> tuple[int, int]:
     return settings.inquiry_rate_limit, settings.inquiry_rate_window_seconds
 
 
+def _track_limits() -> tuple[int, int]:
+    settings = get_settings()
+    return settings.track_rate_limit, settings.track_rate_window_seconds
+
+
 @router.get(
     "/artworks",
     response_model=Page[ArtworkListItem],
     summary="Listado paginado de obras",
-    description="Solo obras publicadas, reservadas o vendidas (nunca borradores), "
-    "de la mas reciente a la mas antigua.",
+    description="Solo obras publicadas, reservadas o vendidas (nunca borradores) de artistas "
+    "activos, de la mas reciente a la mas antigua.",
 )
 def list_artworks(
     session: SessionDep,
@@ -46,7 +52,7 @@ def list_artworks(
     "/artworks/{artwork_id}",
     response_model=ArtworkDetail,
     summary="Detalle de una obra",
-    description="Errores: 404 si no existe o es un borrador.",
+    description="Errores: 404 si no existe, es un borrador o su artista esta desactivado.",
 )
 def get_artwork(artwork_id: int, session: SessionDep) -> ArtworkDetail:
     artwork = artwork_service.get_public(session, artwork_id)
@@ -86,3 +92,17 @@ def create_inquiry(
         return InquiryAccepted()
     inquiry_service.create_inquiry(session, artwork_id, body)
     return InquiryAccepted()
+
+
+@router.post(
+    "/track",
+    status_code=204,
+    summary="Registrar una visita (sin cookies ni datos personales)",
+    description="Suma 1 al contador diario agregado de la obra (o general si `artwork_id` es "
+    "null). No se guarda IP ni user-agent. Si la obra no existe o no es publica se ignora "
+    "en silencio. Errores: 429 si se supera el limite por IP.",
+    dependencies=[Depends(rate_limit("track", _track_limits))],
+)
+def track_visit(body: TrackRequest, session: SessionDep) -> Response:
+    visit_service.record_visit(session, body.artwork_id)
+    return Response(status_code=204)

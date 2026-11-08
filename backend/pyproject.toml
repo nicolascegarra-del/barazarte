@@ -20,8 +20,10 @@ dependencies = [
     "bcrypt>=4.1",
     "celery>=5.4",
     "redis>=5.0",
+    "packaging>=24.0",  # lo importa kombu (transporte Redis de Celery); sin él el worker no arranca
     "minio>=7.2",
     "pillow>=10.3",
+    "cryptography>=42.0",
     "python-multipart>=0.0.9",
 ]
 

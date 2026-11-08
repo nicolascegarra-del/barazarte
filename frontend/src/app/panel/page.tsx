@@ -31,7 +31,17 @@ export default function PanelHome() {
   return (
     <>
       <h1 className="font-serif text-3xl md:text-4xl">Hola, {artist?.display_name}</h1>
-      <p className="mt-1 text-sm text-muted">Este es el resumen de tu galería.</p>
+      <p className="mt-1 text-sm text-muted">
+        Este es el resumen de tu galería.
+        {artist && (
+          <>
+            {" "}
+            {artist.max_artworks === null
+              ? `Tienes ${artist.artworks_count} obras.`
+              : `Has usado ${artist.artworks_count} de ${artist.max_artworks} obras.`}
+          </>
+        )}
+      </p>
 
       <Link
         href="/panel/subir"

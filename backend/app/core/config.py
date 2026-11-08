@@ -24,6 +24,9 @@ class Settings(BaseSettings):
     rate_limit_backend: str = Field(default="redis", pattern="^(redis|memory)$")
 
     jwt_secret_key: str = ""
+    # Clave Fernet (base64 urlsafe de 32 bytes) para cifrar la clave SMTP guardada en BD.
+    # Vacia = se deriva de JWT_SECRET_KEY con HKDF.
+    settings_encryption_key: str = ""
     jwt_access_expire_minutes: int = 15
     jwt_refresh_expire_days: int = 7
     bcrypt_rounds: int = Field(default=12, ge=4, le=16)
@@ -37,6 +40,7 @@ class Settings(BaseSettings):
     minio_public_base_url: str = "http://localhost:9000"
     max_upload_bytes: int = 10 * 1024 * 1024
     max_images_per_artwork: int = 10
+    default_max_artworks: int = Field(default=5, ge=0)
 
     smtp_host: str = "localhost"
     smtp_port: int = 1025
@@ -49,6 +53,15 @@ class Settings(BaseSettings):
     inquiry_rate_window_seconds: int = 3600
     login_rate_limit: int = 10
     login_rate_window_seconds: int = 60
+    register_rate_limit: int = 5
+    register_rate_window_seconds: int = 3600
+    password_reset_rate_limit: int = 5
+    password_reset_rate_window_seconds: int = 3600
+    track_rate_limit: int = 120
+    track_rate_window_seconds: int = 60
+
+    email_verify_expire_hours: int = 48
+    password_reset_expire_minutes: int = 60
 
     @model_validator(mode="after")
     def _validate_security(self) -> "Settings":
