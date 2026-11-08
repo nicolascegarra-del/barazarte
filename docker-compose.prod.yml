@@ -134,15 +134,17 @@ services:
     environment:
       # El servidor de Next habla con la API por la red interna, sin salir a internet.
       INTERNAL_API_URL: http://baraz-api:8000
+      HOSTNAME: 0.0.0.0  # Next escucha en todas las interfaces, no solo en la IP del contenedor
     expose:
       - "3000"
     healthcheck:
-      # 127.0.0.1 y no localhost: en Alpine localhost resuelve a IPv6 y Next escucha en IPv4.
-      test: ["CMD", "wget", "-qO", "/dev/null", "http://127.0.0.1:3000/"]
+      # Acepta respuesta en la IP del contenedor o en 127.0.0.1 (no en "localhost": en Alpine resuelve a IPv6).
+      # Así no depende de en qué interfaz escuche Next dentro de Coolify.
+      test: ["CMD-SHELL", "wget -qO /dev/null -T 4 http://$$(hostname -i | cut -d' ' -f1):3000/ || wget -qO /dev/null -T 4 http://127.0.0.1:3000/"]
       interval: 15s
-      timeout: 5s
+      timeout: 10s
       retries: 5
-      start_period: 30s
+      start_period: 40s
     depends_on:
       - backend
 
