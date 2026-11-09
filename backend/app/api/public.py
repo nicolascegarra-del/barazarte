@@ -1,5 +1,6 @@
 """Endpoints publicos de la galeria (sin autenticacion)."""
 
+from decimal import Decimal
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, Request, Response
@@ -8,16 +9,20 @@ from app.api.deps import SessionDep
 from app.core.config import get_settings
 from app.core.errors import not_found
 from app.core.rate_limit import rate_limit
+from app.core.storage import ObjectStorage, get_storage
 from app.models import Artist, ArtworkStatus
 from app.schemas.admin import TrackRequest
 from app.schemas.artist import ArtistPublic
 from app.schemas.artwork import ArtworkDetail, ArtworkListItem, PublicStatus
+from app.schemas.catalog import ArtworkFacets, ArtworkNeighbors, ArtworkSize, ArtworkSort
 from app.schemas.common import Page, PaginationParams
 from app.schemas.inquiry import InquiryAccepted, InquiryCreate
 from app.schemas.push import PushPublicKey
-from app.services import artwork_service, inquiry_service, visit_service
+from app.services import artwork_service, inquiry_service, og_image_service, visit_service
 
 router = APIRouter(tags=["public"])
+
+StorageDep = Annotated[ObjectStorage, Depends(get_storage)]
 
 
 def _inquiry_limits() -> tuple[int, int]:
@@ -33,20 +38,87 @@ def _track_limits() -> tuple[int, int]:
 @router.get(
     "/artworks",
     response_model=Page[ArtworkListItem],
-    summary="Listado paginado de obras",
+    summary="Listado paginado y filtrable de obras",
     description="Solo obras publicadas, reservadas o vendidas (nunca borradores) de artistas "
-    "activos, de la mas reciente a la mas antigua.",
+    "activos. Los filtros se combinan con AND. `min_price`/`max_price` excluyen las obras sin "
+    "precio. `size` usa el lado mayor: pequeno < 50 cm, mediano 50-100 cm, grande > 100 cm. "
+    "`available=true` deja solo las publicadas. Orden por defecto: mas recientes; con "
+    "`precio_asc`/`precio_desc` las obras sin precio van al final. "
+    "Errores: 422 si algun parametro es invalido.",
 )
 def list_artworks(
     session: SessionDep,
     pagination: Annotated[PaginationParams, Depends()],
     artist_id: Annotated[int | None, Query(ge=1)] = None,
     status: Annotated[PublicStatus | None, Query()] = None,
+    technique: Annotated[
+        str | None, Query(min_length=1, max_length=120, description="Tecnica exacta")
+    ] = None,
+    min_price: Annotated[Decimal | None, Query(ge=0, max_digits=10, decimal_places=2)] = None,
+    max_price: Annotated[Decimal | None, Query(ge=0, max_digits=10, decimal_places=2)] = None,
+    size: Annotated[ArtworkSize | None, Query()] = None,
+    available: Annotated[bool | None, Query()] = None,
+    sort: Annotated[ArtworkSort, Query()] = "recientes",
 ) -> Page[ArtworkListItem]:
-    artworks, total = artwork_service.list_public(
-        session, pagination, artist_id, ArtworkStatus(status) if status else None
+    filters = artwork_service.PublicArtworkFilters(
+        artist_id=artist_id,
+        status=ArtworkStatus(status) if status else None,
+        technique=technique,
+        min_price=min_price,
+        max_price=max_price,
+        size=size,
+        available=available,
+        sort=sort,
     )
+    artworks, total = artwork_service.list_public(session, pagination, filters)
     return Page.build(artwork_service.to_list_items(session, artworks), total, pagination)
+
+
+@router.get(
+    "/artworks/facets",
+    response_model=ArtworkFacets,
+    summary="Facetas del catalogo",
+    description="Conteos por tecnica y artista y rango de precios sobre todas las obras "
+    "visibles, sin filtros.",
+)
+def get_artwork_facets(session: SessionDep) -> ArtworkFacets:
+    return artwork_service.get_facets(session)
+
+
+@router.get(
+    "/artworks/{artwork_id}/neighbors",
+    response_model=ArtworkNeighbors,
+    summary="Obras anterior y siguiente",
+    description="Segun el orden `recientes` del listado publico. "
+    "Errores: 404 si la obra no es visible.",
+)
+def get_artwork_neighbors(artwork_id: int, session: SessionDep) -> ArtworkNeighbors:
+    return artwork_service.get_neighbors(session, artwork_id)
+
+
+@router.get(
+    "/artworks/{artwork_id}/og.jpg",
+    summary="Imagen para compartir (1200x630)",
+    description="JPEG generado a partir de la imagen principal y cacheado en el "
+    "almacenamiento. Errores: 404 si la obra no es visible, no tiene imagen o el "
+    "archivo de origen no existe.",
+    responses={200: {"content": {"image/jpeg": {}}}},
+)
+def get_artwork_og_image(artwork_id: int, session: SessionDep, storage: StorageDep) -> Response:
+    artwork_service.get_public(session, artwork_id)
+    image = artwork_service.primary_image(session, artwork_id)
+    if image is None or image.id is None:
+        raise not_found("La obra no tiene imagen.")
+    content = og_image_service.get_or_create_og_image(
+        storage, artwork_id, image.id, image.storage_key
+    )
+    if content is None:
+        raise not_found("La imagen de la obra no esta disponible.")
+    return Response(
+        content=content,
+        media_type="image/jpeg",
+        headers={"Cache-Control": "public, max-age=86400"},
+    )
 
 
 @router.get(

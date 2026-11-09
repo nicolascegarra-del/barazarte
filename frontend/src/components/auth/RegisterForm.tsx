@@ -68,7 +68,11 @@ export function RegisterForm() {
       </div>
       <label className="flex min-h-11 items-start gap-3 text-xs text-muted">
         <input type="checkbox" className="mt-0.5 h-5 w-5 accent-[#8a6d2f]" {...register("accept_privacy")} />
-        Acepto la política de privacidad y que mis datos se traten para gestionar mi cuenta.
+        <span>
+          Acepto la{" "}
+          <a href="/legal/privacidad" target="_blank" rel="noopener" className="underline">política de privacidad</a>{" "}
+          y que mis datos se traten para gestionar mi cuenta.
+        </span>
       </label>
       {errors.accept_privacy && <p className="text-xs text-red-700">{errors.accept_privacy.message}</p>}
       {error && <p role="alert" className="text-sm text-red-700">{error}</p>}

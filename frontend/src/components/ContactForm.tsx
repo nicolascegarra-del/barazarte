@@ -79,7 +79,10 @@ export function ContactForm({ artworkId, title }: { artworkId: number; title: st
       </div>
       <label className="flex min-h-11 items-start gap-3 text-xs text-muted">
         <input type="checkbox" className="mt-0.5 h-5 w-5 accent-[#8a6d2f]" {...register("accept_privacy")} />
-        Acepto que mis datos se envíen al artista para que pueda contactarme.
+        <span>
+          Acepto que mis datos se envíen al artista para que pueda contactarme, según la{" "}
+          <a href="/legal/privacidad" target="_blank" rel="noopener" className="underline">política de privacidad</a>.
+        </span>
       </label>
       {errors.accept_privacy && <p className="text-xs text-red-700">{errors.accept_privacy.message}</p>}
       <input tabIndex={-1} autoComplete="off" aria-hidden="true" className="hidden" {...register("website")} />

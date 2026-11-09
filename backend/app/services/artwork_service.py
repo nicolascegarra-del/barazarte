@@ -4,9 +4,11 @@ import logging
 import uuid
 from collections import defaultdict
 from collections.abc import Sequence
+from dataclasses import dataclass
+from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import func, update
+from sqlalchemy import and_, case, func, or_, update
 from sqlmodel import Session, col, select
 
 from app.core.config import get_settings
@@ -28,6 +30,16 @@ from app.schemas.artwork import (
     ArtworkImageRead,
     ArtworkListItem,
     ArtworkUpdate,
+)
+from app.schemas.catalog import (
+    ArtistFacet,
+    ArtworkFacets,
+    ArtworkNeighbors,
+    ArtworkRef,
+    ArtworkSize,
+    ArtworkSort,
+    PriceRange,
+    TechniqueFacet,
 )
 from app.schemas.common import PaginationParams
 from app.services.image_service import process_image
@@ -132,14 +144,79 @@ def to_detail(session: Session, artwork: Artwork) -> ArtworkDetail:
 # ─── Consultas ──────────────────────────────────────────────────────────────────
 
 
+_RECENT_ORDER = (col(Artwork.created_at).desc(), col(Artwork.id).desc())
+SIZE_SMALL_MAX_CM = Decimal(50)
+SIZE_MEDIUM_MAX_CM = Decimal(100)
+
+
+@dataclass(frozen=True)
+class PublicArtworkFilters:
+    """Filtros opcionales del listado publico (todos se combinan con AND)."""
+
+    artist_id: int | None = None
+    status: ArtworkStatus | None = None
+    technique: str | None = None
+    min_price: Decimal | None = None
+    max_price: Decimal | None = None
+    size: ArtworkSize | None = None
+    available: bool | None = None
+    sort: ArtworkSort = "recientes"
+
+
+def _longest_side() -> Any:
+    """Expresion SQL del lado mayor (portable: SQLite no tiene GREATEST)."""
+    return case(
+        (col(Artwork.width_cm) >= col(Artwork.height_cm), Artwork.width_cm),
+        else_=Artwork.height_cm,
+    )
+
+
+def _order_for(sort: ArtworkSort) -> Sequence[Any]:
+    if sort == "recientes":
+        return _RECENT_ORDER
+    price = col(Artwork.price)
+    direction = price.asc() if sort == "precio_asc" else price.desc()
+    # Las obras sin precio van siempre al final, con independencia del sentido
+    return (case((price.is_(None), 1), else_=0), direction, *_RECENT_ORDER)
+
+
+def _filter_conditions(filters: PublicArtworkFilters) -> list[Any]:
+    conditions = _visible()
+    if filters.status is not None:
+        conditions.append(Artwork.status == filters.status)
+    if filters.available:
+        conditions.append(Artwork.status == ArtworkStatus.PUBLISHED)
+    if filters.artist_id is not None:
+        conditions.append(Artwork.artist_id == filters.artist_id)
+    if filters.technique is not None:
+        conditions.append(func.lower(Artwork.technique) == filters.technique.strip().lower())
+    # Comparar con NULL da NULL: usar min/max de precio excluye solo las obras sin precio
+    if filters.min_price is not None:
+        conditions.append(col(Artwork.price) >= filters.min_price)
+    if filters.max_price is not None:
+        conditions.append(col(Artwork.price) <= filters.max_price)
+    if filters.size is not None:
+        longest = _longest_side()
+        if filters.size == "pequeno":
+            conditions.append(longest < SIZE_SMALL_MAX_CM)
+        elif filters.size == "mediano":
+            conditions.append(and_(longest >= SIZE_SMALL_MAX_CM, longest <= SIZE_MEDIUM_MAX_CM))
+        else:
+            conditions.append(longest > SIZE_MEDIUM_MAX_CM)
+    return conditions
+
+
 def _paginate(
-    session: Session, conditions: list[Any], params: PaginationParams
+    session: Session,
+    conditions: list[Any],
+    params: PaginationParams,
+    order_by: Sequence[Any] = _RECENT_ORDER,
 ) -> tuple[list[Artwork], int]:
     total = session.exec(select(func.count()).select_from(Artwork).where(*conditions)).one()
     statement = (
         select(Artwork)
         .where(*conditions)
-        .order_by(col(Artwork.created_at).desc(), col(Artwork.id).desc())
+        .order_by(*order_by)
         .offset(params.offset)
         .limit(params.page_size)
     )
@@ -151,21 +228,94 @@ def _from_active_artist() -> Any:
     return col(Artwork.artist_id).in_(select(Artist.id).where(col(Artist.is_active).is_(True)))
 
 
+def _visible() -> list[Any]:
+    """Condiciones base de visibilidad publica (estado publico y artista activo)."""
+    return [col(Artwork.status).in_(PUBLIC_ARTWORK_STATUSES), _from_active_artist()]
+
+
 def list_public(
-    session: Session,
-    params: PaginationParams,
-    artist_id: int | None,
-    status: ArtworkStatus | None,
+    session: Session, params: PaginationParams, filters: PublicArtworkFilters
 ) -> tuple[list[Artwork], int]:
-    conditions: list[Any] = [
-        col(Artwork.status).in_(PUBLIC_ARTWORK_STATUSES),
-        _from_active_artist(),
-    ]
-    if status is not None:
-        conditions.append(Artwork.status == status)
-    if artist_id is not None:
-        conditions.append(Artwork.artist_id == artist_id)
-    return _paginate(session, conditions, params)
+    """Listado publico filtrado y ordenado."""
+    return _paginate(session, _filter_conditions(filters), params, _order_for(filters.sort))
+
+
+def get_facets(session: Session) -> ArtworkFacets:
+    """Conteos por tecnica y artista y rango de precios sobre todas las obras visibles."""
+    visible = _visible()
+    technique_name = func.min(Artwork.technique)
+    technique_count = func.count()
+    technique_rows = session.exec(
+        select(technique_name, technique_count)
+        .where(*visible)
+        .group_by(func.lower(Artwork.technique))
+        .order_by(technique_count.desc(), technique_name)
+    ).all()
+    artist_count = func.count()
+    artist_rows = session.exec(
+        select(Artist.id, Artist.display_name, artist_count)
+        .join(Artwork, col(Artwork.artist_id) == col(Artist.id))
+        .where(*visible)
+        .group_by(col(Artist.id), col(Artist.display_name))
+        .order_by(artist_count.desc(), col(Artist.display_name))
+    ).all()
+    price_min, price_max, total = session.exec(
+        select(func.min(Artwork.price), func.max(Artwork.price), func.count()).where(*visible)
+    ).one()
+    return ArtworkFacets(
+        techniques=[TechniqueFacet(name=name, count=count) for name, count in technique_rows],
+        artists=[
+            ArtistFacet(id=artist_id, display_name=name, count=count)
+            for artist_id, name, count in artist_rows
+            if artist_id is not None
+        ],
+        price=PriceRange(min=price_min, max=price_max),
+        total=total,
+    )
+
+
+def get_neighbors(session: Session, artwork_id: int) -> ArtworkNeighbors:
+    """Obras anterior y siguiente en el orden 'recientes' del listado publico completo."""
+    current = get_public(session, artwork_id)
+    visible = _visible()
+    newer = session.exec(
+        select(Artwork.id, Artwork.title)
+        .where(
+            *visible,
+            or_(
+                col(Artwork.created_at) > current.created_at,
+                and_(col(Artwork.created_at) == current.created_at, col(Artwork.id) > artwork_id),
+            ),
+        )
+        .order_by(col(Artwork.created_at).asc(), col(Artwork.id).asc())
+        .limit(1)
+    ).first()
+    older = session.exec(
+        select(Artwork.id, Artwork.title)
+        .where(
+            *visible,
+            or_(
+                col(Artwork.created_at) < current.created_at,
+                and_(col(Artwork.created_at) == current.created_at, col(Artwork.id) < artwork_id),
+            ),
+        )
+        .order_by(*_RECENT_ORDER)
+        .limit(1)
+    ).first()
+    return ArtworkNeighbors(
+        prev=ArtworkRef(id=newer[0], title=newer[1]) if newer else None,
+        next=ArtworkRef(id=older[0], title=older[1]) if older else None,
+    )
+
+
+def primary_image(session: Session, artwork_id: int) -> ArtworkImage | None:
+    """Imagen principal de la obra: la de menor posicion."""
+    return session.exec(
+        select(ArtworkImage)
+        .where(ArtworkImage.artwork_id == artwork_id)
+        .order_by(col(ArtworkImage.position), col(ArtworkImage.id))
+        .limit(1)
+    ).first()
 
 
 def get_public(session: Session, artwork_id: int) -> Artwork:

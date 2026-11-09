@@ -124,6 +124,8 @@ services:
     restart: unless-stopped
     environment:
       # Sin INTERNAL_API_URL: el servidor de Next usa la URL pública de la API (API_URL), que siempre resuelve.
+      # URL pública para las vistas previas al compartir (enlaces absolutos en las etiquetas Open Graph).
+      SITE_URL: ${FRONTEND_URL}
       HOSTNAME: 0.0.0.0  # Next escucha en todas las interfaces, no solo en la IP del contenedor
     expose:
       - "3000"

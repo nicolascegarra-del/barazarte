@@ -7,6 +7,7 @@ from io import BytesIO
 from typing import Protocol
 
 from minio import Minio
+from minio.error import S3Error
 
 from app.core.config import get_settings
 
@@ -15,6 +16,10 @@ logger = logging.getLogger(__name__)
 
 class ObjectStorage(Protocol):
     def put(self, key: str, data: bytes, content_type: str) -> None: ...
+
+    def get(self, key: str) -> bytes | None:
+        """Contenido del objeto, o None si no existe."""
+        ...
 
     def delete(self, key: str) -> None: ...
 
@@ -51,6 +56,19 @@ class MinioStorage:
         self._client.put_object(
             self._bucket, key, BytesIO(data), length=len(data), content_type=content_type
         )
+
+    def get(self, key: str) -> bytes | None:
+        try:
+            response = self._client.get_object(self._bucket, key)
+        except S3Error as exc:
+            if exc.code in {"NoSuchKey", "NoSuchBucket"}:
+                return None
+            raise
+        try:
+            return response.read()
+        finally:
+            response.close()
+            response.release_conn()
 
     def delete(self, key: str) -> None:
         self._client.remove_object(self._bucket, key)

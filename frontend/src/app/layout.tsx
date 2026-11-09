@@ -13,9 +13,22 @@ const cormorant = Cormorant_Garamond({
 });
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
+// URL pública de la web (para que las vistas previas al compartir lleven enlaces absolutos). Se lee en ejecución.
+const SITE_URL = process.env.SITE_URL ?? "http://localhost:3000";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: "BarazArte · Galería de arte online",
   description: "Obras originales de artistas contemporáneos. Contacta directamente con el artista.",
+  openGraph: {
+    type: "website",
+    siteName: "BarazArte",
+    locale: "es_ES",
+    title: "BarazArte · Galería de arte online",
+    description: "Obras originales de artistas contemporáneos. Contacta directamente con el artista.",
+    images: [{ url: "/icons/icon-512.png", width: 512, height: 512, alt: "BarazArte" }],
+  },
+  twitter: { card: "summary" },
   // Al añadir la web a la pantalla de inicio se comporta como app (necesario para avisos en iPhone).
   appleWebApp: { capable: true, title: "BarazArte", statusBarStyle: "default" },
   icons: { icon: "/icons/icon-192.png", apple: "/icons/apple-touch-icon.png" },
