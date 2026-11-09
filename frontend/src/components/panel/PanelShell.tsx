@@ -2,6 +2,7 @@
 
 import { Logo } from "@/components/Logo";
 import { SessionProvider, useSession } from "@/lib/session";
+import { UnreadProvider } from "@/lib/unread";
 import { LoginForm } from "./LoginForm";
 import { PanelNav } from "./PanelNav";
 
@@ -41,7 +42,9 @@ function Gate({ children, admin }: { children: React.ReactNode; admin: boolean }
 export function PanelShell({ children, admin = false }: { children: React.ReactNode; admin?: boolean }) {
   return (
     <SessionProvider>
-      <Gate admin={admin}>{children}</Gate>
+      <UnreadProvider>
+        <Gate admin={admin}>{children}</Gate>
+      </UnreadProvider>
     </SessionProvider>
   );
 }

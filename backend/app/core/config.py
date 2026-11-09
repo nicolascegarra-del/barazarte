@@ -60,6 +60,11 @@ class Settings(BaseSettings):
     track_rate_limit: int = 120
     track_rate_window_seconds: int = 60
 
+    # Web Push (VAPID). Si falta alguna de las tres el push queda desactivado.
+    vapid_public_key: str = ""
+    vapid_private_key: str = ""
+    vapid_subject: str = ""
+
     email_verify_expire_hours: int = 48
     password_reset_expire_minutes: int = 60
 
@@ -76,6 +81,10 @@ class Settings(BaseSettings):
     @property
     def cors_origin_list(self) -> list[str]:
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+
+    @property
+    def push_enabled(self) -> bool:
+        return bool(self.vapid_public_key and self.vapid_private_key and self.vapid_subject)
 
     @property
     def is_production(self) -> bool:

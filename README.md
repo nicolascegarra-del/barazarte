@@ -72,6 +72,17 @@ Variables de entorno en Coolify (todas obligatorias salvo las de SMTP):
 | `API_URL` | `https://api.barazarte.com` |
 | `MEDIA_URL` | `https://media.barazarte.com` |
 | `SMTP_*`, `MAIL_FROM` | opcionales: el admin configura el correo desde `/admin/correo` |
+| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | opcionales: avisos en el móvil. Generar con `python -m app.cli generate-vapid` |
+| `VAPID_SUBJECT` | `mailto:` de contacto para los servicios de push, p. ej. `mailto:admin@tudominio.com` |
+
+### Avisos en el móvil (Web Push)
+Cuando un comprador escribe, el artista recibe una notificación en el móvil y ve un contador rojo de consultas
+sin leer en "Consultas". Para activarlo en producción:
+1. En el terminal del contenedor `backend` del recurso: `python -m app.cli generate-vapid`.
+2. Copia `VAPID_PUBLIC_KEY` y `VAPID_PRIVATE_KEY` a las variables de Coolify, añade `VAPID_SUBJECT` y redespliega.
+   No las cambies después: las suscripciones existentes dejarían de funcionar.
+3. Cada artista pulsa "Activar avisos" en Consultas. En Android funciona desde Chrome; en iPhone (iOS 16.4+) solo si
+   antes añade la web a la pantalla de inicio (Compartir → "Añadir a pantalla de inicio").
 
 Primer despliegue: crea el administrador desde el terminal del contenedor `backend`:
 ```bash

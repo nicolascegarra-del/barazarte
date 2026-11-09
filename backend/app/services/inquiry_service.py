@@ -3,11 +3,12 @@
 import logging
 from typing import Any
 
-from sqlalchemy import func
+from sqlalchemy import func, update
 from sqlmodel import Session, col, select
 
 from app.core.errors import not_found
 from app.models import Inquiry, InquiryStatus
+from app.models.base import utcnow
 from app.schemas.common import PaginationParams
 from app.schemas.inquiry import InquiryCreate
 from app.services.artwork_service import get_public
@@ -25,6 +26,17 @@ def enqueue_inquiry_emails(inquiry_id: int) -> None:
         send_buyer_confirmation.delay(inquiry_id)
     except Exception:
         logger.exception("No se pudo encolar el email de la consulta %s", inquiry_id)
+    enqueue_inquiry_push(inquiry_id)
+
+
+def enqueue_inquiry_push(inquiry_id: int) -> None:
+    """Encola la notificacion push, independiente de los emails: si falla se registra."""
+    from app.tasks.push import send_new_inquiry
+
+    try:
+        send_new_inquiry.delay(inquiry_id)
+    except Exception:
+        logger.exception("No se pudo encolar el push de la consulta %s", inquiry_id)
 
 
 def create_inquiry(session: Session, artwork_id: int, data: InquiryCreate) -> Inquiry:
@@ -67,6 +79,26 @@ def list_inquiries(
         .limit(params.page_size)
     )
     return list(session.exec(statement)), total
+
+
+def count_unread(session: Session, artist_id: int) -> int:
+    """Consultas del artista que aun no ha leido."""
+    statement = (
+        select(func.count())
+        .select_from(Inquiry)
+        .where(Inquiry.artist_id == artist_id, col(Inquiry.read_at).is_(None))
+    )
+    return session.exec(statement).one()
+
+
+def mark_all_read(session: Session, artist_id: int) -> None:
+    """Marca como leidas todas las consultas pendientes del artista."""
+    session.exec(
+        update(Inquiry)
+        .where(col(Inquiry.artist_id) == artist_id, col(Inquiry.read_at).is_(None))
+        .values(read_at=utcnow())
+    )
+    session.commit()
 
 
 def update_status(

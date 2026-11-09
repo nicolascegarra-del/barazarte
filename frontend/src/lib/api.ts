@@ -27,6 +27,7 @@ export interface ArtworkDetail extends Omit<ArtworkListItem, "cover_thumb_url"> 
 export interface Inquiry {
   id: number; artwork_id: number | null; artwork_title: string; name: string; email: string;
   phone: string | null; message: string; status: InquiryStatus; created_at: string;
+  read_at: string | null; // null = sin leer
 }
 
 // ─── Administración ───

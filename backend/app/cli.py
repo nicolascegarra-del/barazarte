@@ -1,12 +1,16 @@
 """CLI de administracion. Crea artistas (y administradores) ya verificados.
 
 Uso: python -m app.cli create-artist --email maria@example.com --name "Maria" [--admin]
+     python -m app.cli generate-vapid
 """
 
 import argparse
+import base64
 import getpass
 import sys
 
+from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 from sqlmodel import Session, select
 
 from app.core.database import get_engine
@@ -35,6 +39,21 @@ def create_artist(email: str, display_name: str, password: str, *, is_admin: boo
         session.commit()
 
 
+def _b64url(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).rstrip(b"=").decode()
+
+
+def generate_vapid_keys() -> tuple[str, str]:
+    """Par VAPID (P-256). Publica: punto sin comprimir en base64url (applicationServerKey del
+    navegador). Privada: escalar de 32 bytes en base64url (formato que acepta pywebpush)."""
+    private_key = ec.generate_private_key(ec.SECP256R1())
+    public_bytes = private_key.public_key().public_bytes(
+        Encoding.X962, PublicFormat.UncompressedPoint
+    )
+    private_bytes = private_key.private_numbers().private_value.to_bytes(32, "big")
+    return _b64url(public_bytes), _b64url(private_bytes)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(prog="app.cli")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -42,7 +61,13 @@ def main() -> None:
     create.add_argument("--email", required=True)
     create.add_argument("--name", required=True)
     create.add_argument("--admin", action="store_true", help="Crea un administrador")
+    sub.add_parser("generate-vapid", help="Genera un par de claves VAPID para Web Push")
     args = parser.parse_args()
+
+    if args.command == "generate-vapid":
+        public_key, private_key = generate_vapid_keys()
+        sys.stdout.write(f"VAPID_PUBLIC_KEY={public_key}\nVAPID_PRIVATE_KEY={private_key}\n")
+        return
 
     password = getpass.getpass("Contrasena: ")
     if getpass.getpass("Repite la contrasena: ") != password:

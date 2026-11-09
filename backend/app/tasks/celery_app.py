@@ -8,7 +8,7 @@ celery_app = Celery(
     "barazarte",
     broker=_settings.redis_url,
     backend=_settings.redis_url,
-    include=["app.tasks.email"],
+    include=["app.tasks.email", "app.tasks.push"],
 )
 celery_app.conf.update(
     task_serializer="json",

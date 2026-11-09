@@ -4,6 +4,19 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, Image as ImageIcon, LayoutDashboard, Mail, MailCheck, Plus, Shield, Users } from "lucide-react";
 import { useSession } from "@/lib/session";
+import { useUnread } from "@/lib/unread";
+
+const CONSULTAS = "/panel/consultas";
+
+/** Contador rojo de consultas sin leer (oculto si es 0; "99+" a partir de 100). */
+function Counter({ n, className = "" }: { n: number; className?: string }) {
+  if (n <= 0) return null;
+  return (
+    <span aria-hidden className={`inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#b3261e] px-1 text-[10px] font-semibold leading-none text-white ${className}`}>
+      {n > 99 ? "99+" : n}
+    </span>
+  );
+}
 
 type Item = { href: string; label: string; icon: typeof Home };
 
@@ -26,6 +39,7 @@ const adminItems: Item[] = [
 export function PanelNav() {
   const path = usePathname();
   const { artist } = useSession();
+  const { count: unread } = useUnread();
   const inAdmin = path.startsWith("/admin");
   const items = inAdmin ? adminItems : artistItems;
   const exact = inAdmin ? "/admin" : "/panel";
@@ -47,9 +61,11 @@ export function PanelNav() {
             key={href}
             href={href}
             aria-current={active(href) ? "page" : undefined}
-            className={`py-2 text-sm ${active(href) ? "border-b border-gold text-foreground" : "text-muted hover:text-foreground"}`}
+            aria-label={href === CONSULTAS && unread > 0 ? `${label}, ${unread} sin leer` : undefined}
+            className={`inline-flex items-center gap-1.5 py-2 text-sm ${active(href) ? "border-b border-gold text-foreground" : "text-muted hover:text-foreground"}`}
           >
             {label}
+            {href === CONSULTAS && <Counter n={unread} />}
           </Link>
         ))}
         {switchTo && <Link href={switchTo.href} className="py-2 text-sm text-gold hover:underline">{switchTo.label}</Link>}
@@ -94,8 +110,17 @@ export function PanelNav() {
             >
               <Plus size={26} aria-hidden />
             </Link>
-            <Link href={items[2].href} aria-current={active(items[2].href) ? "page" : undefined} className={`flex min-h-14 flex-col items-center justify-center gap-1 text-[11px] ${cls(active(items[2].href))}`}>
-              <Mail size={20} aria-hidden /> {items[2].label}
+            <Link
+              href={items[2].href}
+              aria-current={active(items[2].href) ? "page" : undefined}
+              aria-label={unread > 0 ? `${items[2].label}, ${unread} sin leer` : undefined}
+              className={`flex min-h-14 flex-col items-center justify-center gap-1 text-[11px] ${cls(active(items[2].href))}`}
+            >
+              <span className="relative">
+                <Mail size={20} aria-hidden />
+                <Counter n={unread} className="absolute -right-3 -top-2" />
+              </span>
+              {items[2].label}
             </Link>
             {switchTo && (
               <Link href={switchTo.href} className="absolute -top-9 right-3 inline-flex min-h-9 items-center gap-1 rounded-full border border-line bg-background px-3 text-[11px] text-gold">

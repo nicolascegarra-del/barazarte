@@ -14,6 +14,7 @@ from app.schemas.artist import ArtistPublic
 from app.schemas.artwork import ArtworkDetail, ArtworkListItem, PublicStatus
 from app.schemas.common import Page, PaginationParams
 from app.schemas.inquiry import InquiryAccepted, InquiryCreate
+from app.schemas.push import PushPublicKey
 from app.services import artwork_service, inquiry_service, visit_service
 
 router = APIRouter(tags=["public"])
@@ -106,3 +107,14 @@ def create_inquiry(
 def track_visit(body: TrackRequest, session: SessionDep) -> Response:
     visit_service.record_visit(session, body.artwork_id)
     return Response(status_code=204)
+
+
+@router.get(
+    "/push/public-key",
+    response_model=PushPublicKey,
+    summary="Clave publica VAPID para suscribirse a Web Push",
+    description="`public_key` es null si el push no esta configurado en el servidor.",
+)
+def push_public_key() -> PushPublicKey:
+    settings = get_settings()
+    return PushPublicKey(public_key=settings.vapid_public_key if settings.push_enabled else None)

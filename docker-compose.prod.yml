@@ -81,6 +81,11 @@ services:
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       SMTP_STARTTLS: ${SMTP_STARTTLS:-true}
       MAIL_FROM: ${MAIL_FROM:-BarazArte <no-reply@barazarte.com>}
+      # Avisos en el móvil (Web Push). Opcionales: sin ellas la web funciona y el botón indica que no están configurados.
+      # Generarlas con: python -m app.cli generate-vapid (terminal del contenedor backend).
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-}
     expose:
       - "8000"
     healthcheck:

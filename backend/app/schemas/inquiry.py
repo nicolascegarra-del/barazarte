@@ -48,7 +48,12 @@ class InquiryRead(BaseModel):
     message: str
     status: InquiryStatus
     created_at: datetime
+    read_at: datetime | None
 
 
 class InquiryStatusUpdate(BaseModel):
     status: InquiryStatus
+
+
+class UnreadCount(BaseModel):
+    count: int

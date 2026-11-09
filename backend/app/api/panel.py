@@ -16,8 +16,9 @@ from app.schemas.artwork import (
     ArtworkUpdate,
 )
 from app.schemas.common import Page, PaginationParams
-from app.schemas.inquiry import InquiryRead, InquiryStatusUpdate
-from app.services import artwork_service, inquiry_service
+from app.schemas.inquiry import InquiryRead, InquiryStatusUpdate, UnreadCount
+from app.schemas.push import PushSubscribe, PushUnsubscribe
+from app.services import artwork_service, inquiry_service, push_service
 
 router = APIRouter(prefix="/panel", tags=["panel"], dependencies=[Depends(get_current_artist)])
 
@@ -37,6 +38,7 @@ def _inquiry_read(inquiry: Inquiry) -> InquiryRead:
         message=inquiry.message,
         status=inquiry.status,
         created_at=inquiry.created_at,
+        read_at=inquiry.read_at,
     )
 
 
@@ -164,6 +166,27 @@ def list_my_inquiries(
     return Page.build([_inquiry_read(inquiry) for inquiry in inquiries], total, pagination)
 
 
+@router.get(
+    "/inquiries/unread-count",
+    response_model=UnreadCount,
+    summary="Numero de consultas sin leer",
+)
+def unread_inquiries_count(artist: CurrentArtist, session: SessionDep) -> UnreadCount:
+    assert artist.id is not None  # noqa: S101
+    return UnreadCount(count=inquiry_service.count_unread(session, artist.id))
+
+
+@router.post(
+    "/inquiries/read-all",
+    response_model=UnreadCount,
+    summary="Marcar todas las consultas como leidas",
+)
+def read_all_inquiries(artist: CurrentArtist, session: SessionDep) -> UnreadCount:
+    assert artist.id is not None  # noqa: S101
+    inquiry_service.mark_all_read(session, artist.id)
+    return UnreadCount(count=0)
+
+
 @router.patch(
     "/inquiries/{inquiry_id}",
     response_model=InquiryRead,
@@ -176,3 +199,26 @@ def update_inquiry_status(
     assert artist.id is not None  # noqa: S101
     inquiry = inquiry_service.update_status(session, artist.id, inquiry_id, body.status)
     return _inquiry_read(inquiry)
+
+
+# ─── Notificaciones push ────────────────────────────────────────────────────────
+
+
+@router.post(
+    "/push/subscribe",
+    status_code=204,
+    summary="Registrar una suscripcion Web Push",
+    description="Upsert por `endpoint`: si ya existia para otro artista se reasigna al actual. "
+    "Errores: 422 si el endpoint no es https o los campos son invalidos.",
+)
+def push_subscribe(body: PushSubscribe, artist: CurrentArtist, session: SessionDep) -> Response:
+    assert artist.id is not None  # noqa: S101
+    push_service.subscribe(session, artist.id, body)
+    return Response(status_code=204)
+
+
+@router.post("/push/unsubscribe", status_code=204, summary="Eliminar una suscripcion Web Push")
+def push_unsubscribe(body: PushUnsubscribe, artist: CurrentArtist, session: SessionDep) -> Response:
+    assert artist.id is not None  # noqa: S101
+    push_service.unsubscribe(session, artist.id, body.endpoint)
+    return Response(status_code=204)
