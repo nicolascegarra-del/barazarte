@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Fill, LegalPage, LegalTable } from "@/components/LegalPage";
 
-export const metadata = { title: "Política de privacidad · BarazArte" };
+export const metadata = { title: "Política de privacidad · BarazArte", alternates: { canonical: "/legal/privacidad" } };
 
 export default function Privacidad() {
   return (

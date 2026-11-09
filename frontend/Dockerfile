@@ -9,8 +9,11 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 # NEXT_PUBLIC_* se incrusta en el JavaScript del navegador durante el build.
+# SITE_URL: dominio público; las páginas que se generan en el build (legales, robots.txt) lo llevan dentro.
 ARG NEXT_PUBLIC_API_URL
+ARG SITE_URL=http://localhost:3000
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL \
+    SITE_URL=$SITE_URL \
     NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 

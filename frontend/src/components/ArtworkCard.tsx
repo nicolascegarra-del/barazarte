@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { type ArtworkListItem, formatPrice, formatSize } from "@/lib/api";
+import { artworkPath } from "@/lib/slug";
 import { StatusBadge } from "./StatusBadge";
 
 /**
@@ -9,7 +10,7 @@ import { StatusBadge } from "./StatusBadge";
 export function ArtworkCard({ art }: { art: ArtworkListItem }) {
   const sold = art.status === "vendido";
   return (
-    <Link href={`/obras/${art.id}`} className="group block">
+    <Link href={artworkPath(art.id, art.title)} className="group block">
       <div className="relative aspect-square bg-[#ece8e0] p-[12%] transition-colors duration-300 group-hover:bg-[#e6e1d7]">
         <div className="flex h-full w-full items-center justify-center">
           {art.cover_thumb_url ? (

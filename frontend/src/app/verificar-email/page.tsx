@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { AuthCard } from "@/components/auth/AuthCard";
 import { VerifyEmail } from "@/components/auth/VerifyEmail";
 
-export const metadata = { title: "Verificar email · BarazArte" };
+export const metadata = { title: "Verificar email · BarazArte", robots: { index: false, follow: false } };
 
 export default function VerificarEmail() {
   return (

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, X, ZoomIn } from "lucide-react";
+import { artworkPath } from "@/lib/slug";
 
 interface Props {
   src: string;
@@ -113,7 +114,7 @@ export function ArtworkViewer({ src, alt, width, height, badge, prev, next }: Pr
     // Solo gestos claramente horizontales, para no interferir con el desplazamiento vertical de la página.
     if (Math.abs(dx) < 60 || Math.abs(dy) > Math.abs(dx) * 0.6) return;
     const target = dx < 0 ? next : prev;
-    if (target) router.push(`/obras/${target.id}`);
+    if (target) router.push(artworkPath(target.id, target.title));
   }
 
   return (
@@ -132,12 +133,12 @@ export function ArtworkViewer({ src, alt, width, height, badge, prev, next }: Pr
       {(prev || next) && (
         <nav aria-label="Otras obras" className="mt-2 flex items-center justify-between text-sm">
           {prev ? (
-            <Link href={`/obras/${prev.id}`} className="inline-flex min-h-11 max-w-[48%] items-center gap-1 text-muted hover:text-foreground">
+            <Link href={artworkPath(prev.id, prev.title)} className="inline-flex min-h-11 max-w-[48%] items-center gap-1 text-muted hover:text-foreground">
               <ChevronLeft size={18} aria-hidden /> <span className="truncate">{prev.title}</span>
             </Link>
           ) : <span />}
           {next ? (
-            <Link href={`/obras/${next.id}`} className="inline-flex min-h-11 max-w-[48%] items-center gap-1 text-right text-muted hover:text-foreground">
+            <Link href={artworkPath(next.id, next.title)} className="inline-flex min-h-11 max-w-[48%] items-center gap-1 text-right text-muted hover:text-foreground">
               <span className="truncate">{next.title}</span> <ChevronRight size={18} aria-hidden />
             </Link>
           ) : <span />}

@@ -10,6 +10,7 @@ import { ArrowLeft, ExternalLink, ImagePlus } from "lucide-react";
 import { type ArtworkDetail, type ArtworkStatus } from "@/lib/api";
 import { useSession } from "@/lib/session";
 import { TECHNIQUES } from "@/lib/techniques";
+import { artworkPath } from "@/lib/slug";
 import { ImageEditor } from "@/components/panel/ImageEditor";
 import { StatusBadge } from "@/components/StatusBadge";
 
@@ -164,7 +165,7 @@ export default function EditarObra() {
             <input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(e) => e.target.files?.[0] && setPhotoFile(e.target.files[0])} />
           </label>
           {art.status !== "borrador" && (
-            <Link href={`/obras/${art.id}`} target="_blank" className="mt-2 flex min-h-11 items-center justify-center gap-2 text-sm underline">
+            <Link href={artworkPath(art.id, art.title)} target="_blank" className="mt-2 flex min-h-11 items-center justify-center gap-2 text-sm underline">
               <ExternalLink size={14} aria-hidden /> Ver en la web
             </Link>
           )}

@@ -1,6 +1,6 @@
 import { LegalPage, LegalTable } from "@/components/LegalPage";
 
-export const metadata = { title: "Política de cookies · BarazArte" };
+export const metadata = { title: "Política de cookies · BarazArte", alternates: { canonical: "/legal/cookies" } };
 
 export default function Cookies() {
   return (

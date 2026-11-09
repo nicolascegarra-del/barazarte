@@ -1,6 +1,6 @@
 import { Fill, LegalPage } from "@/components/LegalPage";
 
-export const metadata = { title: "Aviso legal · BarazArte" };
+export const metadata = { title: "Aviso legal · BarazArte", alternates: { canonical: "/legal/aviso-legal" } };
 
 export default function AvisoLegal() {
   return (

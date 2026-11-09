@@ -1,15 +1,32 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { type ArtworkListItem, type Page, publicGet } from "@/lib/api";
 import { activeCount, parseFilters, toApiQuery } from "@/lib/filters";
 import { ArtworkGrid } from "@/components/ArtworkGrid";
 import { ArtworkFilters, type Facets } from "@/components/ArtworkFilters";
 
-export const metadata = { title: "Obras · BarazArte" };
 export const dynamic = "force-dynamic";
+
+type SP = { searchParams: Promise<Record<string, string | string[] | undefined>> };
+
+/**
+ * El catálogo completo se indexa con su canónica; las combinaciones de filtros no (serían cientos de
+ * páginas casi duplicadas), aunque Google sigue sus enlaces hacia las obras.
+ */
+export async function generateMetadata({ searchParams }: SP): Promise<Metadata> {
+  const filtered = activeCount(parseFilters(await searchParams)) > 0;
+  return {
+    title: "Obras de arte originales: cuadros a la venta · BarazArte",
+    description:
+      "Cuadros originales de artistas contemporáneos: óleo, acrílico, acuarela y técnica mixta. Filtra por precio, tamaño y técnica y contacta con el artista.",
+    alternates: { canonical: "/obras" },
+    robots: filtered ? { index: false, follow: true } : undefined,
+  };
+}
 
 const EMPTY_FACETS: Facets = { techniques: [], artists: [], total: 0 };
 
-export default async function Obras({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+export default async function Obras({ searchParams }: SP) {
   const filters = parseFilters(await searchParams);
   const [data, facets] = await Promise.all([
     publicGet<Page<ArtworkListItem>>(`/artworks?${toApiQuery(filters)}`),

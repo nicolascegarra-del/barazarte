@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { API_URL, formatPrice, formatSize } from "@/lib/api";
 import { getArtwork, getNeighbors } from "@/lib/artworks-server";
+import { artworkJsonLd } from "@/lib/seo";
+import { artworkPath, parseArtworkId, safeDecode } from "@/lib/slug";
+import { JsonLd } from "@/components/JsonLd";
 import { ContactForm } from "@/components/ContactForm";
 import { StatusBadge } from "@/components/StatusBadge";
 import { VisitTracker } from "@/components/VisitTracker";
@@ -15,23 +18,30 @@ type Params = { params: Promise<{ id: string }> };
 
 const priceLabel = (status: string, price: string | null) => (status === "vendido" ? "Vendida" : formatPrice(price));
 
-/** Vista previa al compartir en WhatsApp, Instagram, Facebook…: foto de la obra, título, artista y precio. */
+/** Id numérico de la URL (`7-bosque-de-noche` → "7"); null si no es una obra válida. */
+async function idFrom(params: Params["params"]): Promise<string | null> {
+  const n = parseArtworkId((await params).id);
+  return n === null ? null : String(n);
+}
+
+/** Título, descripción, URL canónica y vista previa al compartir (WhatsApp, Instagram, Facebook…). */
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
-  const { id } = await params;
-  const art = await getArtwork(id);
-  if (!art) return { title: "Obra no encontrada · BarazArte" };
+  const id = await idFrom(params);
+  const art = id ? await getArtwork(id) : null;
+  if (!art) return { title: "Obra no encontrada · BarazArte", robots: { index: false } };
   const title = `${art.title} · ${art.artist.display_name}`;
-  const description = `${art.technique} · ${formatSize(art)} · ${priceLabel(art.status, art.price)}. Obra original en BarazArte.`;
+  const description = `${art.title}, obra original de ${art.artist.display_name}. ${art.technique} · ${formatSize(art)} · ${priceLabel(art.status, art.price)}. En BarazArte, galería de arte online.`;
   const image = `${API_URL}/artworks/${art.id}/og.jpg`;
+  const path = artworkPath(art.id, art.title);
   return {
     title: `${title} · BarazArte`,
     description,
-    alternates: { canonical: `/obras/${art.id}` },
+    alternates: { canonical: path },
     openGraph: {
       type: "article",
       title,
       description,
-      url: `/obras/${art.id}`,
+      url: path,
       images: [{ url: image, width: 1200, height: 630, alt: art.title, type: "image/jpeg" }],
     },
     twitter: { card: "summary_large_image", title, description, images: [image] },
@@ -39,9 +49,14 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 }
 
 export default async function ObraPage({ params }: Params) {
-  const { id } = await params;
+  const segment = (await params).id;
+  const id = await idFrom(params);
+  if (!id) notFound();
   const [art, neighbors] = await Promise.all([getArtwork(id), getNeighbors(id)]);
   if (!art) notFound();
+  // Una sola URL por obra: /obras/7 o un título antiguo redirigen (301) a la dirección legible actual.
+  const canonical = artworkPath(art.id, art.title);
+  if (`/obras/${safeDecode(segment)}` !== canonical) permanentRedirect(canonical);
   const [main, ...rest] = art.images;
   const price = priceLabel(art.status, art.price);
   const canContact = art.status !== "vendido";
@@ -49,6 +64,7 @@ export default async function ObraPage({ params }: Params) {
   return (
     <article className={`mx-auto grid max-w-6xl gap-10 px-4 py-8 md:grid-cols-2 md:px-8 md:py-12 ${canContact ? "pb-28 md:pb-12" : ""}`}>
       <VisitTracker artworkId={art.id} />
+      <JsonLd data={artworkJsonLd(art)} />
       <div className="w-full space-y-3">
         {main && (
           <ArtworkViewer

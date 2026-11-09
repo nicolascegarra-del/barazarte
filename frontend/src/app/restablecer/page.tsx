@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { AuthCard } from "@/components/auth/AuthCard";
 import { ConfirmReset } from "@/components/auth/PasswordForms";
 
-export const metadata = { title: "Nueva contraseña · BarazArte" };
+export const metadata = { title: "Nueva contraseña · BarazArte", robots: { index: false, follow: false } };
 
 export default function Restablecer() {
   return (

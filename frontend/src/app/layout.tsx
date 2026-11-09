@@ -4,6 +4,7 @@ import "./globals.css";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { SiteChrome } from "@/components/SiteChrome";
+import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/seo";
 
 const cormorant = Cormorant_Garamond({
   subsets: ["latin"],
@@ -13,22 +14,27 @@ const cormorant = Cormorant_Garamond({
 });
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
-// URL pública de la web (para que las vistas previas al compartir lleven enlaces absolutos). Se lee en ejecución.
-const SITE_URL = process.env.SITE_URL ?? "http://localhost:3000";
+const TITLE = "BarazArte · Galería de arte online y cuadros originales";
 
 export const metadata: Metadata = {
+  // SITE_URL llega en el build y en ejecución: enlaces absolutos correctos también en páginas estáticas.
   metadataBase: new URL(SITE_URL),
-  title: "BarazArte · Galería de arte online",
-  description: "Obras originales de artistas contemporáneos. Contacta directamente con el artista.",
+  title: TITLE,
+  description: SITE_DESCRIPTION,
+  applicationName: SITE_NAME,
+  // Sin canónica ni og:url aquí: se heredarían en todas las páginas. Cada página declara la suya.
+  robots: { index: true, follow: true },
   openGraph: {
     type: "website",
-    siteName: "BarazArte",
+    siteName: SITE_NAME,
     locale: "es_ES",
-    title: "BarazArte · Galería de arte online",
-    description: "Obras originales de artistas contemporáneos. Contacta directamente con el artista.",
-    images: [{ url: "/icons/icon-512.png", width: 512, height: 512, alt: "BarazArte" }],
+    title: TITLE,
+    description: SITE_DESCRIPTION,
+    images: [{ url: "/icons/icon-512.png", width: 512, height: 512, alt: SITE_NAME }],
   },
   twitter: { card: "summary" },
+  // Verificación de Google Search Console por etiqueta (opcional; alternativa al registro DNS).
+  verification: process.env.GOOGLE_SITE_VERIFICATION ? { google: process.env.GOOGLE_SITE_VERIFICATION } : undefined,
   // Al añadir la web a la pantalla de inicio se comporta como app (necesario para avisos en iPhone).
   appleWebApp: { capable: true, title: "BarazArte", statusBarStyle: "default" },
   icons: { icon: "/icons/icon-192.png", apple: "/icons/apple-touch-icon.png" },

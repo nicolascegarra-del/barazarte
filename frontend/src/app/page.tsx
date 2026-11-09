@@ -1,23 +1,29 @@
+import type { Metadata } from "next";
 import Link from "next/link";
+import { siteJsonLd } from "@/lib/seo";
+import { JsonLd } from "@/components/JsonLd";
 import { type ArtworkListItem, type Page, publicGet } from "@/lib/api";
 import { ArtworkGrid } from "@/components/ArtworkGrid";
 import { VisitTracker } from "@/components/VisitTracker";
 
 export const dynamic = "force-dynamic";
 
+export const metadata: Metadata = { alternates: { canonical: "/" }, openGraph: { url: "/" } };
+
 export default async function Home() {
   const data = await publicGet<Page<ArtworkListItem>>("/artworks?page_size=6");
   return (
     <>
       <VisitTracker />
+      <JsonLd data={siteJsonLd()} />
       <section className="mx-auto grid max-w-6xl gap-6 px-4 pb-4 pt-12 md:grid-cols-2 md:items-end md:px-8 md:pt-16">
         <h1 className="font-serif text-4xl font-medium leading-[1.05] md:text-6xl">
           Pintura contemporánea, obra original
         </h1>
         <div>
           <p className="text-sm leading-7 text-muted">
-            Cada pieza es única y está firmada por su autor. Descubre la colección y contacta directamente con el
-            artista para hacerla tuya.
+            BarazArte es una galería de arte online de cuadros originales. Cada pieza es única y está firmada por su
+            autor: descubre la colección y contacta directamente con el artista para hacerla tuya.
           </p>
           <Link
             href="/obras"

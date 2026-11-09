@@ -121,11 +121,14 @@ services:
       context: ./frontend
       args:
         NEXT_PUBLIC_API_URL: ${API_URL:?Define API_URL, p.ej. https://api.barazarte.com}
+        SITE_URL: ${FRONTEND_URL}
     restart: unless-stopped
     environment:
       # Sin INTERNAL_API_URL: el servidor de Next usa la URL pública de la API (API_URL), que siempre resuelve.
       # URL pública para las vistas previas al compartir (enlaces absolutos en las etiquetas Open Graph).
       SITE_URL: ${FRONTEND_URL}
+      # Opcional: código de la etiqueta de verificación de Google Search Console.
+      GOOGLE_SITE_VERIFICATION: ${GOOGLE_SITE_VERIFICATION:-}
       HOSTNAME: 0.0.0.0  # Next escucha en todas las interfaces, no solo en la IP del contenedor
     expose:
       - "3000"

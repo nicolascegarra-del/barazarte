@@ -75,6 +75,19 @@ Variables de entorno en Coolify (todas obligatorias salvo las de SMTP):
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | opcionales: avisos en el móvil. Generar con `python -m app.cli generate-vapid` |
 | `VAPID_SUBJECT` | `mailto:` de contacto para los servicios de push, p. ej. `mailto:admin@tudominio.com` |
 
+### SEO (aparecer en Google)
+La web ya genera `/sitemap.xml` (con todas las obras visibles, se actualiza solo), `/robots.txt` (excluye panel,
+admin y cuentas), datos estructurados schema.org (galería en la portada y `VisualArtwork` en cada obra), URLs
+legibles (`/obras/7-titulo-de-la-obra`, las antiguas redirigen) y canónicas por página. El dominio sale de
+`FRONTEND_URL`, que se pasa al build como `SITE_URL`.
+
+Pasos manuales para que Google la indexe:
+1. Google Search Console → «Añadir propiedad» → tipo **Dominio** → `barazarte.klyp.es` → copiar el registro TXT
+   y crearlo en el DNS (Contabo). Alternativa: tipo **Prefijo de URL** con «Etiqueta HTML» y poner solo el valor
+   de `content` en la variable `GOOGLE_SITE_VERIFICATION` de Coolify.
+2. En Search Console → Sitemaps → enviar `https://barazarte.klyp.es/sitemap.xml`.
+3. Inspeccionar la URL de la portada y pulsar «Solicitar indexación».
+
 ### Avisos en el móvil (Web Push)
 Cuando un comprador escribe, el artista recibe una notificación en el móvil y ve un contador rojo de consultas
 sin leer en "Consultas". Para activarlo en producción:
