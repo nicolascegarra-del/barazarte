@@ -52,7 +52,7 @@ export default function MisObras() {
               {a.cover_thumb_url && <img src={a.cover_thumb_url} alt="" className="h-full w-full object-cover" />}
             </div>
             <div className="min-w-0 flex-1 basis-40">
-              <p className="truncate font-serif text-lg">{a.title}</p>
+              <Link href={`/panel/obras/${a.id}`} className="block truncate font-serif text-lg hover:underline">{a.title}</Link>
               <p className="text-xs text-muted">{formatSize(a)} · {formatPrice(a.price)}</p>
             </div>
             <select
@@ -61,6 +61,7 @@ export default function MisObras() {
             >
               {STATUSES.map((s) => <option key={s}>{s}</option>)}
             </select>
+            <Link href={`/panel/obras/${a.id}`} className="inline-flex min-h-11 items-center border border-line px-4 text-sm">Editar</Link>
             <button onClick={() => remove(a)} className="min-h-11 px-2 text-sm text-red-700 underline">Borrar</button>
           </li>
         ))}

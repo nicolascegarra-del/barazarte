@@ -76,7 +76,7 @@ export default function PanelHome() {
               <p className="truncate font-serif text-lg">{a.title}</p>
               <p className="text-xs text-muted">{formatSize(a)} · {formatPrice(a.price)} · {a.status}</p>
             </div>
-            {a.status !== "borrador" && <Link href={`/obras/${a.id}`} className="min-h-11 content-center px-2 text-sm underline">Ver</Link>}
+            <Link href={`/panel/obras/${a.id}`} className="min-h-11 content-center px-2 text-sm underline">Editar</Link>
           </li>
         ))}
       </ul>

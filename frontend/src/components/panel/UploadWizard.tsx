@@ -7,6 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Camera, ImagePlus, Check, Sun, Frame, Maximize } from "lucide-react";
 import { useSession } from "@/lib/session";
+import { TECHNIQUES } from "@/lib/techniques";
 import { ImageEditor } from "./ImageEditor";
 
 const schema = z.object({
@@ -21,7 +22,6 @@ const schema = z.object({
 type FormIn = z.input<typeof schema>;
 type FormOut = z.output<typeof schema>;
 
-const TECHNIQUES = ["Óleo sobre lienzo", "Acrílico sobre lienzo", "Acuarela", "Técnica mixta", "Dibujo", "Otra"];
 const field = "w-full min-h-11 rounded-md border border-line bg-white px-3 text-base outline-none focus:border-gold md:text-sm";
 const steps = ["Foto", "Ajustes", "Datos"];
 
